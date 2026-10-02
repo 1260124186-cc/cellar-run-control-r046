@@ -40,13 +40,19 @@ func run(arguments []string) error {
 			return usageError()
 		}
 		return workflowcheck.Run(arguments[1])
+	case "import":
+		return runImport(arguments[1:])
+	case "import-status":
+		return runImportStatus(arguments[1:])
+	case "import-confirm":
+		return runImportConfirm(arguments[1:])
 	default:
 		return usageError()
 	}
 }
 
 func usageError() error {
-	return errors.New("usage: fermentctl serve | fermentctl check <workflow>")
+	return errors.New("usage: fermentctl serve | check <workflow> | import <file.csv> [--yes] | import-status [id] | import-confirm <id>")
 }
 
 func serve() error {

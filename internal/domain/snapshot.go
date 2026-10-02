@@ -3,25 +3,29 @@ package domain
 import "time"
 
 type Snapshot struct {
-	Revision    int64                      `json:"revision"`
-	UpdatedAt   time.Time                  `json:"updated_at"`
-	Formulas    map[string]Formula         `json:"formulas"`
-	Vessels     map[string]Vessel          `json:"vessels"`
-	Runs        map[string]FermentationRun `json:"runs"`
-	NameIndex   map[string]string          `json:"formula_name_index"`
-	VesselIndex map[string]string          `json:"vessel_code_index"`
-	RunIndex    map[string]string          `json:"run_code_index"`
+	Revision      int64                      `json:"revision"`
+	UpdatedAt     time.Time                  `json:"updated_at"`
+	Formulas      map[string]Formula         `json:"formulas"`
+	Vessels       map[string]Vessel          `json:"vessels"`
+	Runs          map[string]FermentationRun `json:"runs"`
+	NameIndex     map[string]string          `json:"formula_name_index"`
+	VesselIndex   map[string]string          `json:"vessel_code_index"`
+	RunIndex      map[string]string          `json:"run_code_index"`
+	Imports       map[string]ImportSession   `json:"imports"`
+	ImportHashIdx map[string]string          `json:"import_hash_index"`
 }
 
 func EmptySnapshot() Snapshot {
 	return Snapshot{
-		Revision:    0,
-		Formulas:    map[string]Formula{},
-		Vessels:     map[string]Vessel{},
-		Runs:        map[string]FermentationRun{},
-		NameIndex:   map[string]string{},
-		VesselIndex: map[string]string{},
-		RunIndex:    map[string]string{},
+		Revision:      0,
+		Formulas:      map[string]Formula{},
+		Vessels:       map[string]Vessel{},
+		Runs:          map[string]FermentationRun{},
+		NameIndex:     map[string]string{},
+		VesselIndex:   map[string]string{},
+		RunIndex:      map[string]string{},
+		Imports:       map[string]ImportSession{},
+		ImportHashIdx: map[string]string{},
 	}
 }
 
@@ -51,6 +55,12 @@ func (s Snapshot) Clone() Snapshot {
 	}
 	for key, value := range s.RunIndex {
 		cloned.RunIndex[key] = value
+	}
+	for key, value := range s.Imports {
+		cloned.Imports[key] = value.Clone()
+	}
+	for key, value := range s.ImportHashIdx {
+		cloned.ImportHashIdx[key] = value
 	}
 	return cloned
 }

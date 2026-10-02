@@ -78,6 +78,12 @@ func normalizeSnapshot(value domain.Snapshot) (domain.Snapshot, error) {
 	if value.RunIndex == nil {
 		value.RunIndex = map[string]string{}
 	}
+	if value.Imports == nil {
+		value.Imports = map[string]domain.ImportSession{}
+	}
+	if value.ImportHashIdx == nil {
+		value.ImportHashIdx = map[string]string{}
+	}
 	if err := validateIndexes(value); err != nil {
 		return domain.Snapshot{}, err
 	}
@@ -118,7 +124,21 @@ func validateIndexes(value domain.Snapshot) error {
 		}
 		expectedRuns[run.Code] = id
 	}
-	return compareIndexes("run code", value.RunIndex, expectedRuns)
+	if err := compareIndexes("run code", value.RunIndex, expectedRuns); err != nil {
+		return err
+	}
+
+	expectedImports := make(map[string]string, len(value.Imports))
+	for id, session := range value.Imports {
+		if session.ContentHash == "" {
+			return fmt.Errorf("import %s has an empty content hash", id)
+		}
+		if existing, found := expectedImports[session.ContentHash]; found && existing != id {
+			return fmt.Errorf("import hash index contains a duplicate hash")
+		}
+		expectedImports[session.ContentHash] = id
+	}
+	return compareIndexes("import hash", value.ImportHashIdx, expectedImports)
 }
 
 func compareIndexes(label string, actual, expected map[string]string) error {

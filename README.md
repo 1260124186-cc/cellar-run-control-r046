@@ -94,6 +94,13 @@ Run workflow:
 - `POST /v1/runs/{id}/complete`
 - `POST /v1/runs/{id}/abort`
 
+Season CSV import (two-phase precheck then confirm):
+
+- `POST /v1/imports`
+- `GET /v1/imports`
+- `GET /v1/imports/{id}`
+- `POST /v1/imports/{id}/confirm`
+
 Writes accept an optional `X-Expected-Version` header. Errors use a stable
 shape:
 
@@ -115,11 +122,77 @@ Run each production workflow check separately:
 go run ./cmd/fermentctl check formula-approval
 go run ./cmd/fermentctl check vessel-run-lifecycle
 go run ./cmd/fermentctl check observations-completion
+go run ./cmd/fermentctl check season-import
 ```
 
 Each check creates a temporary snapshot directory, starts the real HTTP
 handler on a loopback listener, issues JSON requests, verifies success and
 failure behavior, and removes its temporary data.
+
+## Season CSV Import
+
+Before the season starts, one CSV can carry formulas, their process steps,
+vessels, and planned runs in a single upload. The import is a deliberate
+two-phase operation so nothing is half-created:
+
+1. `POST /v1/imports` stores and runs a full precheck. The response lists, with
+   physical file line numbers, the entities it **would create**, every
+   **conflict** with an existing name/code, and every **blocking issue**.
+2. `POST /v1/imports/{id}/confirm` commits the whole planned set in a single
+   atomic snapshot revision. If any entity or reference is invalid, precheck is
+   `rejected` and confirmation is refused, so nothing is created at all.
+
+The same byte-identical file uploaded twice resolves to the same import
+session (keyed by a SHA-256 of its contents): a completed file is a no-op on
+repeat and never generates a second round of entities. Import sessions live in
+the durable snapshot, so an upload or confirmation interrupted by a restart can
+be inspected with `GET /v1/imports/{id}` and then confirmed.
+
+The first row is a fixed header. Each later row sets `kind` to one of
+`formula`, `step`, `vessel`, or `run`; columns that do not apply to a row are
+left empty.
+
+| Column | Used by | Meaning |
+| --- | --- | --- |
+| `kind` | all | `formula`, `step`, `vessel`, or `run` |
+| `name`, `style` | formula | normalized formula name (unique, case/space folded) and style |
+| `target_original_gravity`, `target_final_gravity` | formula | validated against the same bounds as the API |
+| `max_fermentation_temp_c`, `minimum_days`, `maximum_days` | formula | validated against the same bounds as the API |
+| `approved` | formula | `true` imports the formula already approved and requires valid steps; `false` leaves it a draft |
+| `capacity_liters`, `code` | vessel | 10–5000 L and a unique vessel code |
+| `code`, `planned_volume_liters`, `notes` | run | unique run code, positive planned volume |
+| `formula` | step, run | formula name the step belongs to or the run uses |
+| `sequence`, `label`, `temperature_c`, `hold_minutes` | step | contiguous steps from 1, validated like `PUT /steps` |
+
+A run's `formula` may name a formula defined earlier or later in the same file
+or an already-approved formula in the cellar. Referencing a non-existent or
+unapproved formula is a blocking issue on that run's line. A formula, vessel,
+or run whose name/code already exists is reported under `conflicts` and is
+skipped (it does not block the rest of the file).
+
+Example:
+
+```text
+kind,name,style,...,approved,capacity_liters,code,formula,planned_volume_liters,...,sequence,label,temperature_c,hold_minutes
+formula,Cellar Helles,Lager,...,true,,,,,,...
+step,,,,,,,,Cellar Helles,,...,1,Mash,64,70
+vessel,,,,,,1800,FV-100,,,,,...
+run,,,,,,,,,RUN-OPEN-1,Cellar Helles,850,...
+```
+
+The same flow is available on the command line:
+
+```bash
+# precheck only; prints what would be created, conflicts, and line-numbered issues
+go run ./cmd/fermentctl import season.csv --data-dir=./data
+# precheck and, if clean, commit everything atomically
+go run ./cmd/fermentctl import season.csv --yes
+# inspect where an interrupted import finished (or list every session)
+go run ./cmd/fermentctl import-status
+go run ./cmd/fermentctl import-status <import-id>
+# confirm a session that passed precheck in an earlier process
+go run ./cmd/fermentctl import-confirm <import-id>
+```
 
 ## Persistence And Recovery
 

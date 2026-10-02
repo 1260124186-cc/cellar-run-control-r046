@@ -22,7 +22,11 @@ func Run(name string) error {
 	if err != nil {
 		return err
 	}
-	app := service.New(store, clock.System{})
+	importLedger, err := storage.OpenImportStore(dataDir)
+	if err != nil {
+		return err
+	}
+	app := service.New(store, importLedger, clock.System{})
 	server := httptest.NewServer(httpapi.NewHandler(app))
 	defer server.Close()
 	api := newClient(server.URL)
@@ -38,6 +42,10 @@ func Run(name string) error {
 		}
 	case "observations-completion":
 		if err := observationsCompletion(api); err != nil {
+			return err
+		}
+	case "batch-import":
+		if err := batchImport(api, dataDir); err != nil {
 			return err
 		}
 	default:

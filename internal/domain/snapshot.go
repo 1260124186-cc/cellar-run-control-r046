@@ -3,25 +3,31 @@ package domain
 import "time"
 
 type Snapshot struct {
-	Revision    int64                      `json:"revision"`
-	UpdatedAt   time.Time                  `json:"updated_at"`
-	Formulas    map[string]Formula         `json:"formulas"`
-	Vessels     map[string]Vessel          `json:"vessels"`
-	Runs        map[string]FermentationRun `json:"runs"`
-	NameIndex   map[string]string          `json:"formula_name_index"`
-	VesselIndex map[string]string          `json:"vessel_code_index"`
-	RunIndex    map[string]string          `json:"run_code_index"`
+	Revision       int64                      `json:"revision"`
+	UpdatedAt      time.Time                  `json:"updated_at"`
+	Formulas       map[string]Formula         `json:"formulas"`
+	Vessels        map[string]Vessel          `json:"vessels"`
+	Runs           map[string]FermentationRun `json:"runs"`
+	NameIndex      map[string]string          `json:"formula_name_index"`
+	VesselIndex    map[string]string          `json:"vessel_code_index"`
+	RunIndex       map[string]string          `json:"run_code_index"`
+	FormulaSources map[string]ImportSource    `json:"formula_sources,omitempty"`
+	VesselSources  map[string]ImportSource    `json:"vessel_sources,omitempty"`
+	RunSources     map[string]ImportSource    `json:"run_sources,omitempty"`
 }
 
 func EmptySnapshot() Snapshot {
 	return Snapshot{
-		Revision:    0,
-		Formulas:    map[string]Formula{},
-		Vessels:     map[string]Vessel{},
-		Runs:        map[string]FermentationRun{},
-		NameIndex:   map[string]string{},
-		VesselIndex: map[string]string{},
-		RunIndex:    map[string]string{},
+		Revision:       0,
+		Formulas:       map[string]Formula{},
+		Vessels:        map[string]Vessel{},
+		Runs:           map[string]FermentationRun{},
+		NameIndex:      map[string]string{},
+		VesselIndex:    map[string]string{},
+		RunIndex:       map[string]string{},
+		FormulaSources: map[string]ImportSource{},
+		VesselSources:  map[string]ImportSource{},
+		RunSources:     map[string]ImportSource{},
 	}
 }
 
@@ -51,6 +57,15 @@ func (s Snapshot) Clone() Snapshot {
 	}
 	for key, value := range s.RunIndex {
 		cloned.RunIndex[key] = value
+	}
+	for key, value := range s.FormulaSources {
+		cloned.FormulaSources[key] = value
+	}
+	for key, value := range s.VesselSources {
+		cloned.VesselSources[key] = value
+	}
+	for key, value := range s.RunSources {
+		cloned.RunSources[key] = value
 	}
 	return cloned
 }

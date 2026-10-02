@@ -189,6 +189,24 @@ updated aggregate and its version. A failed write returns:
 Write requests may include `X-Expected-Version`. When present, the service
 rejects a stale write instead of overwriting newer state.
 
+### Batch Import
+
+`POST /v1/imports` accepts the seasonal CSV bundle (raw `text/csv` or a
+multipart `file` field). The service parses the fixed header, validates
+each entity against the domain rules, resolves cross-table references by
+file `ref` and then existing name/code, and returns every formula, vessel,
+and run labeled `create`, `adopt`, or `conflict`, with issues anchored at
+the physical CSV line. Nothing is created during precheck.
+
+The upload is keyed by SHA-256. Re-uploading identical bytes returns the
+same session and, after a completed import, reports `adopt` rather than a
+second creation round. `POST /v1/imports/{id}/confirm` re-plans against the
+live snapshot and applies the entire batch inside one atomic snapshot
+revision; any conflict or invalid entity aborts the revision without
+partial writes. A durable ledger in `<data-dir>/imports` tracks
+`previewed`, `applying`, and `completed`; a process interrupted while
+applying is reconciled against the snapshot on its next read.
+
 `GET /healthz` returns process health and the current snapshot revision.
 
 ## Persistence And Concurrency
@@ -217,6 +235,7 @@ behavior, and exit without external services:
 - `go run ./cmd/fermentctl check formula-approval`
 - `go run ./cmd/fermentctl check vessel-run-lifecycle`
 - `go run ./cmd/fermentctl check observations-completion`
+- `go run ./cmd/fermentctl check batch-import`
 
 ## Scope Limits
 

@@ -24,9 +24,14 @@
       "responsibility": "entities, validation, state transitions, and metrics"
     },
     {
+      "id": "importplan",
+      "path": "internal/importplan",
+      "responsibility": "parse seasonal CSV bundles and build line-annotated import plans"
+    },
+    {
       "id": "service",
       "path": "internal/service",
-      "responsibility": "orchestrate formulas, vessels, runs, and observations"
+      "responsibility": "orchestrate formulas, vessels, runs, observations, and batch imports"
     },
     {
       "id": "storage",

@@ -78,10 +78,55 @@ func normalizeSnapshot(value domain.Snapshot) (domain.Snapshot, error) {
 	if value.RunIndex == nil {
 		value.RunIndex = map[string]string{}
 	}
+	if value.FormulaSources == nil {
+		value.FormulaSources = map[string]domain.ImportSource{}
+	}
+	if value.VesselSources == nil {
+		value.VesselSources = map[string]domain.ImportSource{}
+	}
+	if value.RunSources == nil {
+		value.RunSources = map[string]domain.ImportSource{}
+	}
 	if err := validateIndexes(value); err != nil {
 		return domain.Snapshot{}, err
 	}
+	if err := validateSources(value); err != nil {
+		return domain.Snapshot{}, err
+	}
 	return value, nil
+}
+
+func validateSources(value domain.Snapshot) error {
+	check := func(label string, sources map[string]domain.ImportSource, known map[string]struct{}) error {
+		for id, source := range sources {
+			if _, ok := known[id]; !ok {
+				return fmt.Errorf("%s import source references an unknown entity", label)
+			}
+			if source.ImportID == "" || len(source.ImportID) != 64 || source.Line < 1 {
+				return fmt.Errorf("%s import source for %s is incomplete", label, id)
+			}
+		}
+		return nil
+	}
+	formulaIDs := make(map[string]struct{}, len(value.Formulas))
+	for id := range value.Formulas {
+		formulaIDs[id] = struct{}{}
+	}
+	vesselIDs := make(map[string]struct{}, len(value.Vessels))
+	for id := range value.Vessels {
+		vesselIDs[id] = struct{}{}
+	}
+	runIDs := make(map[string]struct{}, len(value.Runs))
+	for id := range value.Runs {
+		runIDs[id] = struct{}{}
+	}
+	if err := check("formula", value.FormulaSources, formulaIDs); err != nil {
+		return err
+	}
+	if err := check("vessel", value.VesselSources, vesselIDs); err != nil {
+		return err
+	}
+	return check("run", value.RunSources, runIDs)
 }
 
 func validateIndexes(value domain.Snapshot) error {

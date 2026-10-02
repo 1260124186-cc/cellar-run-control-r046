@@ -94,6 +94,16 @@ Run workflow:
 - `POST /v1/runs/{id}/complete`
 - `POST /v1/runs/{id}/abort`
 
+Seasonal batch import (two-phase, preview then confirm):
+
+- `POST /v1/imports` — upload the CSV bundle (`text/csv` body, or
+  `multipart/form-data` with a `file` field) and receive a line-annotated
+  precheck. Nothing is created at this stage.
+- `GET /v1/imports` — list import sessions and their progress.
+- `GET /v1/imports/{id}` — read one session with its full plan.
+- `POST /v1/imports/{id}/confirm` — create the whole validated batch in one
+  atomic snapshot revision.
+
 Writes accept an optional `X-Expected-Version` header. Errors use a stable
 shape:
 
@@ -115,11 +125,41 @@ Run each production workflow check separately:
 go run ./cmd/fermentctl check formula-approval
 go run ./cmd/fermentctl check vessel-run-lifecycle
 go run ./cmd/fermentctl check observations-completion
+go run ./cmd/fermentctl check batch-import
 ```
 
 Each check creates a temporary snapshot directory, starts the real HTTP
 handler on a loopback listener, issues JSON requests, verifies success and
-failure behavior, and removes its temporary data.
+failure behavior, and removes its temporary data. The `batch-import` check
+exercises CSV precheck, blocked confirmation, atomic one-revision creation,
+idempotent re-upload as adopt, code collisions, and crash reconciliation.
+
+## Seasonal CSV Format
+
+The first line is a fixed header; every later line uses only the columns
+its `kind` needs:
+
+```text
+kind,ref,name,style,target_original_gravity,target_final_gravity,max_fermentation_temp_c,minimum_days,maximum_days,lifecycle,step_sequence,step_label,step_temperature_c,step_hold_minutes,vessel_code,vessel_capacity_liters,run_code,run_formula,run_vessel,planned_volume_liters,notes
+```
+
+- `formula` rows carry `ref`, the name/style/gravity/temperature/days
+  fields, and `lifecycle` (`draft` or `approved`, default `approved`).
+- `step` rows attach to a formula by its file `ref` and carry the sequence,
+  label, temperature, and hold time. An approved formula needs a valid
+  contiguous step list beginning at 1.
+- `vessel` rows carry `ref`, `vessel_code`, and `vessel_capacity_liters`.
+- `run` rows carry `run_code`, `run_formula`, an optional `run_vessel`,
+  `planned_volume_liters`, and `notes`. `run_formula`/`run_vessel` resolve
+  against file `ref`s first, then existing formula names / vessel codes.
+
+The preview returns every entity as `create`, `adopt`, or `conflict`, plus
+issues anchored at the CSV line. Confirmation applies only a plan with zero
+errors and zero conflicts. Re-uploading the identical file is keyed by its
+SHA-256 and reports `adopt`, so it can never create a second round. Session
+ledgers live in `<data-directory>/imports`; an interrupted `applying`
+session is reconciled to `completed` (or back to `previewed`) on its next
+read, making the last stopping point visible after a restart.
 
 ## Persistence And Recovery
 

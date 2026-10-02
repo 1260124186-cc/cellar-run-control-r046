@@ -23,6 +23,10 @@ const (
 	CodeObservationConflict Code = "observation_conflict"
 	CodeRevisionConflict    Code = "revision_conflict"
 	CodeStorage             Code = "storage_error"
+	CodeImportInvalid       Code = "import_invalid_input"
+	CodeImportNotFound      Code = "import_not_found"
+	CodeImportConflict      Code = "import_conflict"
+	CodeImportState         Code = "invalid_import_state"
 )
 
 type Error struct {

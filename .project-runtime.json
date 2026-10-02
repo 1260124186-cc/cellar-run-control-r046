@@ -19,6 +19,10 @@
     {
       "workflow_id": "observations-completion",
       "command": "go run ./cmd/fermentctl check observations-completion"
+    },
+    {
+      "workflow_id": "batch-import",
+      "command": "go run ./cmd/fermentctl check batch-import"
     }
   ]
 }

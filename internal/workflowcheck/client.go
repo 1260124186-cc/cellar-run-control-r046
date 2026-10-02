@@ -53,6 +53,19 @@ func (c *client) call(
 	if expectedVersion != nil {
 		request.Header.Set("X-Expected-Version", fmt.Sprintf("%d", *expectedVersion))
 	}
+	return c.do(request)
+}
+
+func (c *client) callCSV(method, path string, content []byte) (response, error) {
+	request, err := http.NewRequest(method, c.baseURL+path, bytes.NewReader(content))
+	if err != nil {
+		return response{}, fmt.Errorf("create request: %w", err)
+	}
+	request.Header.Set("Content-Type", "text/csv")
+	return c.do(request)
+}
+
+func (c *client) do(request *http.Request) (response, error) {
 	raw, err := c.http.Do(request)
 	if err != nil {
 		return response{}, fmt.Errorf("perform request: %w", err)
